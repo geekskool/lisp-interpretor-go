@@ -4,69 +4,30 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	//"reflect"
 	"strconv"
 	"strings"
 )
 
 type number float64
 type symbol string
-type fun func(a ...float64) float64
-
-/*
-func add(a ...float64) float64 {
-	var v float64
-	for i := 0; i < len(a); i++ {
-		v = v + a[i]
-	}
-	return v
-}
-*/
+type boolean bool
 
 //symbols, numbers, expressions, procedures, lists, ... all implement this interface, which enables passing them along in the interpreter
 type inter interface{}
 
 // environments
 // An environment is a mapping from variable names to their values.
-type variable map[symbol]inter
 
-var identifiers = make(map[inter]inter)
+var identifiers = make(map[inter]inter) // anything can be mapped to anything
 
-type env struct {
-	variable
-	other *env
+type procs struct { //  handling procedures
+	arguments []symbol //  saving arguments
+	body      inter    //  body of function
 }
 
-//  init() is always called, regardless if there's main or not,
-//  so if you import a package that has an init function, it will be executed.
+var argbod procs // global variable for saving procedures
 
-var mathsenv = env{
-	variable{ //aka an incomplete set of compiled-in functions
-		"+": func(a ...inter) inter {
-			v := a[0].(number)
-			for _, i := range a[1:] {
-				v += i.(number)
-			}
-			return v
-		},
-	},
-	nil}
-
-/*
-var mathsenv = env{
-	variable{ //aka an incomplete set of compiled-in functions
-		"+": func(a ...number) number { // variadic functions
-			v := a[0].(number)
-			for _, i := range a[1:] {
-				v += i.(number)
-			}
-			fmt.Println("func init() : ", v)
-			return v
-		},
-	},
-	nil}
-*/
-
+// take input from user
 func scan_expression() string {
 
 	reader := bufio.NewReader(os.Stdin)
@@ -111,6 +72,7 @@ func readFrom(tokens []string) inter {
 	}
 }
 
+// arithematic operations
 func add(a []number) inter {
 	sum := a[0]
 	for i := 1; i < len(a); i++ {
@@ -145,6 +107,42 @@ func div(a []number) inter {
 	return num
 }
 
+func gt(a []number) inter {
+	num1 := a[0]
+	num2 := a[1]
+
+	return num1 > num2
+}
+
+func gteq(a []number) inter {
+	num1 := a[0]
+	num2 := a[1]
+
+	return num1 >= num2
+}
+
+func lt(a []number) inter {
+	num1 := a[0]
+	num2 := a[1]
+
+	return num1 < num2
+}
+
+func lteq(a []number) inter {
+	num1 := a[0]
+	num2 := a[1]
+
+	return num1 <= num2
+}
+
+func equals(a []number) inter {
+	num1 := a[0]
+	num2 := a[1]
+
+	return num1 == num2
+}
+
+// converts type interface to number(float64) : used to get operands from expression
 func typeconverter(arr1 inter) []number {
 	var result = make([]number, 0) // problem defining len of arr
 	switch ai := arr1.(type) {
@@ -153,12 +151,13 @@ func typeconverter(arr1 inter) []number {
 			switch x := ai[i].(type) {
 			case number:
 				result = append(result, x)
-				//result[i] = x
 			case []inter:
 				n := mathsop(ai[i]) // returns inter (result of operator function (+))
 				result = append(result, n.(number))
 				// save the resultant answer evaluated to the result array and typecast
-
+			case symbol:
+				n := identifiers[x]
+				result = append(result, n.(number))
 			}
 		}
 	}
@@ -166,6 +165,7 @@ func typeconverter(arr1 inter) []number {
 	return result
 }
 
+// performs maths(arithematics) and condition checking operations
 func mathsop(arr inter) inter {
 	var ans inter
 	switch ai := arr.(type) {
@@ -185,6 +185,21 @@ func mathsop(arr inter) inter {
 			case "/":
 				tc := typeconverter(arr)
 				ans = div(tc)
+			case ">":
+				tc := typeconverter(arr)
+				ans = gt(tc)
+			case ">=":
+				tc := typeconverter(arr)
+				ans = gteq(tc)
+			case "<":
+				tc := typeconverter(arr)
+				ans = lt(tc)
+			case "<=":
+				tc := typeconverter(arr)
+				ans = lteq(tc)
+			case "==":
+				tc := typeconverter(arr)
+				ans = equals(tc)
 
 			}
 		}
@@ -192,6 +207,7 @@ func mathsop(arr inter) inter {
 	return ans
 }
 
+// converts expression into string used with "quote"
 func stringify(v inter) string {
 	switch v := v.(type) {
 	case []inter:
@@ -205,19 +221,160 @@ func stringify(v inter) string {
 	}
 }
 
-/*
-func verify(cond inter) bool {
-	switch s := cond.(type) {
+// println like function
+func doprint(arr inter) {
+	switch s := arr.(type) {
 	case []inter:
-
+		switch i := s[1].(type) {
+		case number:
+			fmt.Println(i)
+		case symbol:
+			str := stringify(i)
+			if strings.HasPrefix(str, "\"") {
+				fmt.Println(str)
+			} else {
+				fmt.Println(identifiers[i])
+			}
+		}
 	}
-	return true
 }
-*/
-// The function eval takes two arguments: an expression, x, that we want to evaluate,
-// and an environment, env, in which to evaluate it
 
-func eval(expr inter, en env) inter {
+// define calls save to save the identifiers and their values
+func save(arr inter) inter {
+	switch p := arr.(type) {
+	case []inter:
+		if p[2].(symbol) == "lambda" {
+			fmt.Println("calling lambda function")
+			lambdafun(p[2:])
+		} else {
+			identifiers[p[1]] = p[2]
+		}
+	}
+	return identifiers
+}
+
+// used to check if else statements
+func condition(arr inter) {
+	switch s := arr.(type) {
+	case []inter:
+		switch tt := s[1].(type) {
+		case symbol:
+			if tt == "nil" {
+				eval(s[3])
+			} else {
+				eval(s[2])
+			}
+		case []inter:
+			x := eval(tt).(bool)
+			if x {
+				eval(s[2])
+			} else {
+				eval(s[3])
+			}
+		}
+	}
+}
+
+//
+func assign(arr inter) {
+	switch s := arr.(type) {
+	case []inter:
+		switch x := s[2].(type) {
+		case []inter:
+			identifiers[s[1]] = eval(x)
+			fmt.Println(identifiers[s[1]])
+		}
+	}
+}
+
+// declares lambda function and maps environments function name, arguments and function body
+func lambdafun(arr inter) {
+	var v number
+	fmt.Println("lambda : ", arr)
+
+	switch s := arr.(type) {
+	case []inter:
+		switch a := s[1].(type) {
+		case []inter:
+			for i := 0; i < len(a); i++ {
+				argbod.arguments = append(argbod.arguments, a[i].(symbol))
+				identifiers[a[i]] = v //arguments
+			}
+		}
+		argbod.body = s[2] // expression or body of function
+	}
+	fmt.Println("arguments saved in argbod ", argbod.arguments)
+}
+
+// calls function after defining
+func funcall(arr inter) {
+
+	switch a := arr.(type) {
+	case []inter:
+		for k := 0; k < len(a); k++ {
+			switch v := a[k].(type) {
+			case []inter:
+				for i := 0; i < len(v); i++ {
+
+					fmt.Println("x1 ", argbod.arguments[i])
+					identifiers[argbod.arguments[i]] = v[i].(number)
+				}
+			case symbol:
+				if _, ok := identifiers[v]; ok { // if ok -> true ; key is present // function name
+					fmt.Println("function has been declared \n")
+				}
+			}
+		}
+		fmt.Println(eval(argbod.body))
+	}
+}
+
+// creates a list of interfaces
+// syntax : ( list name_of_list ( e1 e2 e3 ...) )
+func create_list(arr inter) {
+	var temp []inter
+	var name symbol
+	switch s := arr.(type) {
+	case []inter:
+		for j := 1; j < len(s); j++ {
+			switch v := s[j].(type) {
+			case []inter:
+				for i := 0; i < len(v); i++ {
+					temp = append(temp, v[i])
+				}
+			case symbol:
+				name := v
+				identifiers[name] = make([]inter, 0)
+			}
+		}
+		identifiers[name] = temp
+	}
+	fmt.Println(temp)
+}
+
+// appends (any element) interfaces to the list
+// syntax : ( append ( name_of_list_already_declared  e1 e2 e3....))
+func listconcat(arr inter) {
+	var name symbol
+	fmt.Println(arr)
+	switch s := arr.(type) {
+	case []inter:
+		for i := 0; i < len(s); i++ {
+			switch v := s[i].(type) {
+			case []inter:
+				for i := 1; i < len(v); i++ {
+					identifiers[name] = append(identifiers[name].([]inter), v[i])
+				}
+			case symbol:
+				name = v
+			}
+		}
+	}
+	fmt.Println(identifiers[name])
+}
+
+// The function eval takes one argument: an expression, x, that we want to evaluate,
+func eval(expr inter) inter {
 	var ans inter
 	defer getback() // in case of any runtime exception
 
@@ -228,13 +385,27 @@ func eval(expr inter, en env) inter {
 		switch tt := s[0].(type) {
 		case symbol:
 			switch tt {
-			case "+", "-", "*", "/", ">", ">=", "<", "<=", "==", "%":
-				ans := mathsop(s)
+			case "+", "-", "*", "/", ">", ">=", "<", "<=", "==":
+				ans = mathsop(s)
 				fmt.Println(ans)
 			case "quote":
 				fmt.Println(stringify(s))
+			case "define":
+				fmt.Println(save(s))
+			case "print":
+				doprint(s)
 			case "if":
-				//				verify(s)
+				condition(s)
+			case "set!": // Evaluate exp and assign that value to var
+				assign(s)
+			case "lambda":
+				lambdafun(s)
+			case "list":
+				create_list(s)
+			case "append":
+				listconcat(s[1:])
+			default: // function call
+				funcall(s)
 			}
 		}
 	}
@@ -242,6 +413,7 @@ func eval(expr inter, en env) inter {
 	return ans
 }
 
+// to recover from panic ( run time exception)
 func getback() {
 	r := recover()
 	if r != nil {
@@ -251,17 +423,19 @@ func getback() {
 
 func main() {
 
-	input_string := scan_expression()
-	//fmt.Println(input_string)
+	for {
+		input_string := scan_expression()
+		//fmt.Println(input_string)
+		if strings.Compare(input_string, "(quit)\n") == 0 {
+			fmt.Println("exiting....")
+			break
+		}
 
-	split_string := create_tokens(input_string)
-	fmt.Printf("%s\n", split_string)
+		split_string := create_tokens(input_string)
 
-	//var expression inter
-	expression := readFrom(split_string)
+		expression := readFrom(split_string)
 
-	fmt.Println(expression)
+		eval(expression)
 
-	result := eval(expression, mathsenv)
-	fmt.Println(result)
+	}
 }
