@@ -222,6 +222,7 @@ func stringify(v inter) string {
 }
 
 // println like function
+// syntax : ( print "string" anything )
 func doprint(arr inter) {
 	switch s := arr.(type) {
 	case []inter:
@@ -240,6 +241,8 @@ func doprint(arr inter) {
 }
 
 // define calls save to save the identifiers and their values
+// syntax: ( define x 20)
+// eg2:    ( define area lambda (x y) ( * x y) )  => if lambda func then call lambdafun()
 func save(arr inter) inter {
 	switch p := arr.(type) {
 	case []inter:
@@ -254,6 +257,8 @@ func save(arr inter) inter {
 }
 
 // used to check if else statements
+// syntax: ( if nil (print "hello") (print "bye"))   op=> bye
+// eg2: (if (> 4 2) (print "greater") (print "smaller"))   op=> greater
 func condition(arr inter) {
 	switch s := arr.(type) {
 	case []inter:
@@ -275,7 +280,8 @@ func condition(arr inter) {
 	}
 }
 
-//
+// used with "set!" (manipulates value of a variable)
+// syntax: ( set! x (* a b 8))  >> assume a = 10 b = 20 , then x = 1600
 func assign(arr inter) {
 	switch s := arr.(type) {
 	case []inter:
@@ -288,6 +294,7 @@ func assign(arr inter) {
 }
 
 // declares lambda function and maps environments function name, arguments and function body
+// syntax:    ( define area lambda (x y) ( * x y) )  => if lambda func then call lambdafun()
 func lambdafun(arr inter) {
 	var v number
 	fmt.Println("lambda : ", arr)
@@ -307,6 +314,8 @@ func lambdafun(arr inter) {
 }
 
 // calls function after defining
+// suppose area function is defined in previous case, then,
+// syntax: ( area (10 20) )   => op - 200
 func funcall(arr inter) {
 
 	switch a := arr.(type) {
