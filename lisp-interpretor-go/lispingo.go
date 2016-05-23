@@ -246,9 +246,11 @@ func doprint(arr inter) {
 func save(arr inter) inter {
 	switch p := arr.(type) {
 	case []inter:
-		if p[2].(symbol) == "lambda" {
-			fmt.Println("calling lambda function")
-			lambdafun(p[2:])
+		if _, ok := p[2].(symbol); ok {
+			if p[2].(symbol) == "lambda" {
+				fmt.Println("calling lambda function")
+				lambdafun(p[2:])
+			}
 		} else {
 			identifiers[p[1]] = p[2]
 		}
@@ -315,71 +317,54 @@ func lambdafun(arr inter) {
 
 // calls function after defining
 // suppose area function is defined in previous case, then,
-// syntax: ( area (10 20) )   => op - 200
+// syntax: ( area 10 20 )   => op - 200
 func funcall(arr inter) {
-
+	//var temp = make([]inter, 0)
 	switch a := arr.(type) {
 	case []inter:
-		for k := 0; k < len(a); k++ {
-			switch v := a[k].(type) {
-			case []inter:
-				for i := 0; i < len(v); i++ {
-
-					fmt.Println("x1 ", argbod.arguments[i])
-					identifiers[argbod.arguments[i]] = v[i].(number)
-				}
-			case symbol:
-				if _, ok := identifiers[v]; ok { // if ok -> true ; key is present // function name
-					fmt.Println("function has been declared \n")
-				}
-			}
+		name := a[0].(symbol)
+		if _, ok := identifiers[name]; ok { // if ok -> true ; key is present // function name
+			fmt.Println("function has been declared \n")
 		}
-		fmt.Println(eval(argbod.body))
+
+		for i := 0; i < len(a)-1; i++ {
+			identifiers[argbod.arguments[i]] = a[i+1].(number)
+		}
+
+		identifiers[name] = eval(argbod.body)
 	}
 }
 
 // creates a list of interfaces
-// syntax : ( list name_of_list ( e1 e2 e3 ...) )
+// syntax : ( list name_of_list e1 e2 e3 ... )
 func create_list(arr inter) {
 	var temp []inter
 	var name symbol
 	switch s := arr.(type) {
 	case []inter:
-		for j := 1; j < len(s); j++ {
-			switch v := s[j].(type) {
-			case []inter:
-				for i := 0; i < len(v); i++ {
-					temp = append(temp, v[i])
-				}
-			case symbol:
-				name := v
-				identifiers[name] = make([]inter, 0)
-			}
+		name = s[1].(symbol)
+		for j := 2; j < len(s); j++ {
+			temp = append(temp, s[j])
 		}
 		identifiers[name] = temp
 	}
-	fmt.Println(temp)
 }
 
 // appends (any element) interfaces to the list
-// syntax : ( append ( name_of_list_already_declared  e1 e2 e3....))
+// syntax : ( append name_of_list_already_declared  e1 e2 e3... )
 func listconcat(arr inter) {
 	var name symbol
+	var temp []inter
 	fmt.Println(arr)
 	switch s := arr.(type) {
 	case []inter:
-		for i := 0; i < len(s); i++ {
-			switch v := s[i].(type) {
-			case []inter:
-				for i := 1; i < len(v); i++ {
-					identifiers[name] = append(identifiers[name].([]inter), v[i])
-				}
-			case symbol:
-				name = v
-			}
+		name = s[0].(symbol)
+		temp = identifiers[name].([]inter)
+		for i := 1; i < len(s); i++ {
+			temp = append(temp, s[i])
 		}
 	}
-	fmt.Println(identifiers[name])
+	identifiers[name] = temp
 }
 
 // The function eval takes one argument: an expression, x, that we want to evaluate,
@@ -413,6 +398,12 @@ func eval(expr inter) inter {
 				create_list(s)
 			case "append":
 				listconcat(s[1:])
+			case "car":
+				array := identifiers[s[1].(symbol)].([]inter)
+				fmt.Println(array[0])
+			case "cdr":
+				array := identifiers[s[1].(symbol)].([]inter)
+				fmt.Println(array[1:])
 			default: // function call
 				funcall(s)
 			}
