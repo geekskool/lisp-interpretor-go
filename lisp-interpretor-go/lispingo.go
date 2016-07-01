@@ -49,19 +49,28 @@ func create_tokens(s string) []string {
 }
 
 //Syntactic Analysis
-func readFrom(tokens []string) inter {
+func readFrom(tokens *[]string) inter {
 
 	// take first element from tokens
-	token := tokens[0]
-	tokens = append(tokens[:0], tokens[1:]...)
+	fmt.Println("1 :", tokens)
+	token := (*tokens)[0]
+	*tokens = (*tokens)[1:]
+
+	fmt.Println("2 :", *tokens)
+
 	switch token {
 	case "(": // list begins
 		L := make([]inter, 0)
-		for tokens[0] != ")" {
-			i := readFrom(tokens)
-			L = append(L, i)
+
+		for (*tokens)[0] != ")" {
+			if i := readFrom(tokens); i != "" {
+				L = append(L, i)
+				fmt.Println("L : ", L)
+			}
 		}
-		tokens = append(tokens[:0], tokens[1:]...)
+		*tokens = (*tokens)[1:]
+		fmt.Println("3 :", tokens)
+
 		return L
 	default: // atom
 		if f, err := strconv.ParseFloat(token, 64); err == nil {
@@ -433,7 +442,7 @@ func main() {
 
 		split_string := create_tokens(input_string)
 
-		expression := readFrom(split_string)
+		expression := readFrom(&split_string)
 
 		eval(expression)
 
