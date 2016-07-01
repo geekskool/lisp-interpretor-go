@@ -53,25 +53,22 @@ func readFrom(tokens *[]string) inter {
 
 	// take first element from tokens
 	fmt.Println("1 :", tokens)
-	token := (*tokens)[0]
-	*tokens = (*tokens)[1:]
-
-	fmt.Println("2 :", *tokens)
+	token := (*tokens)[0]   // take first element
+	*tokens = (*tokens)[1:] // update tokens by deleting first element
 
 	switch token {
 	case "(": // list begins
-		L := make([]inter, 0)
+		L := make([]inter, 0) // create empty array of interfaces
 
 		for (*tokens)[0] != ")" {
-			if i := readFrom(tokens); i != "" {
-				L = append(L, i)
-				fmt.Println("L : ", L)
+			if i := readFrom(tokens); i != "" { // check if i is not the end of tokens
+				L = append(L, i) // keep appending element to the array
 			}
 		}
-		*tokens = (*tokens)[1:]
-		fmt.Println("3 :", tokens)
-
-		return L
+		*tokens = (*tokens)[1:] // delete the current element ")" and update the tokens
+		fmt.Println("after ", *tokens)
+		fmt.Println("returning L")
+		return L // return the current L
 	default: // atom
 		if f, err := strconv.ParseFloat(token, 64); err == nil {
 			return number(f)
